@@ -22,11 +22,15 @@ conDict = []
 for line in conLines:
     conDict.append(line.strip())
 
-def backtrackingSearch(csp):
-    return recursiveBacktracking({}, csp)
+forwardChecking = True
+if (sys.argv[3] == "none"):
+    forwardChecking = False
+
+def backtrackingSearch(csp, fc):
+    return recursiveBacktracking({}, csp, fc)
 
 def selectUnassignedVariable(dict, assignment, csp):
-    newKey = [v for v in dict if v not in assignment]
+    newKey = [key for key in dict if key not in assignment]
     return newKey[0]
 
 def checkConstraint(key, num, assignment, csp):
@@ -56,7 +60,7 @@ def checkConstraint(key, num, assignment, csp):
             continue
     return True
 
-def recursiveBacktracking(assignment, csp):
+def recursiveBacktracking(assignment, csp, fc):
     if len(assignment) == varSize:
         return assignment
     
@@ -65,10 +69,10 @@ def recursiveBacktracking(assignment, csp):
     for num in varDict[var]:
         if (checkConstraint(var, num, assignment, csp)):
             assignment[var] = num
-            result = recursiveBacktracking(assignment, csp)
+            result = recursiveBacktracking(assignment, csp, fc)
             if (result != "Failure"):
                 return result
         del assignment[var]
     return "Failure"
 
-print(backtrackingSearch(csp=conDict))
+print(backtrackingSearch(conDict, forwardChecking))
