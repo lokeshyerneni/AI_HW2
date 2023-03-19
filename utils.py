@@ -31,9 +31,9 @@ def formatOutput(
     step: int,
     isSuccess: bool,
 ):
-    output = str(step) + ". "
+    output = str(step) + "."
     for value in assignment:
-        output += str(value) + "=" + str(assignment[value]) + ","
+        output += " " + str(value) + "=" + str(assignment[value]) + ","
 
     output = output[:-1]
 
