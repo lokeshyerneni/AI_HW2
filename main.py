@@ -1,39 +1,77 @@
 # Command: python main.py ex1.var1.txt ex1.con.txt
 import sys
 
-# Initialized files, dictionary for var file
-varFile = open(sys.argv[1], "r")
-varLines = varFile.readlines()
-varDict = {}
-varSize = 0
+from utils import initializeConstraints, initializeVariables
 
-# Appends numbers into dictionary for each value
-for line in varLines:
-    vals = line.split(":")
-    strListVal = list(line.split(":")[1].strip().replace(" ", ""))
-    varDict.update({vals[0]: [int(val) for val in strListVal]})
-    varSize += 1
-
-conFile = open(sys.argv[2], "r")
-conLines = conFile.readlines()
-conDict = []
-
-# Appends numbers into dictionary for each value
-for line in conLines:
-    conDict.append(line.strip())
+# Initialize variables and constraints
+variablesDictionary = initializeVariables(sys.argv[1])
+numVariables = len(variablesDictionary)
+constraintsArray = initializeConstraints(sys.argv[2])
 
 forwardChecking = True
 if sys.argv[3] == "none":
     forwardChecking = False
 
 
-def backtrackingSearch(csp, fc):
-    return recursiveBacktracking({}, csp, fc)
+def backtrackingSearch(domains, csp):
+    return recursiveBacktracking({}, domains, csp)
 
 
-def selectUnassignedVariable(dict, assignment, csp):
-    newKey = [key for key in dict if key not in assignment]
-    return newKey[0]
+def selectUnassignedVariable(variableDomains, assignment, csp):
+    """Select variable algorithm:
+
+    - Select variable via the most constrained variable heuristic
+    - Break ties by using most constraining variable heuristic
+    - Break any remaining ties alphabetically"""
+
+    # Store most constrained variable in list; if ties exist, store both in list
+    # Each variable will be represented as a tuple: (variable_name, variable domain values)
+
+    # Apply most constrained variable heuristic
+    most_constrained_variable = []
+
+    # Lets just use a lambda function to sort
+    for variable, varDomain in variableDomains.items():
+        # Skip if variable already in assignment
+        if variable in assignment:
+            continue
+
+        # Set first variable as most constrained variable
+        if len(most_constrained_variable) == 0:
+            most_constrained_variable = [(variable, varDomain)]
+            continue
+
+        # Check if variable more constrained
+        _, mcVariableDomain = most_constrained_variable[0]
+        if len(varDomain) < len(mcVariableDomain):
+            most_constrained_variable = [(variable, varDomain)]
+        elif len(varDomain) == len(mcVariableDomain):
+            most_constrained_variable.append((variable, varDomain))
+
+    if len(most_constrained_variable) == 1:
+        return most_constrained_variable[0][0]
+
+    # If ties exist, apply most constraining variable heuristic
+    most_constraining_variable = []
+    for variable, _ in most_constrained_variable:
+        # Find number of unassigned variables current variable constrains
+        counter = sum(
+            [
+                1
+                for constraint in csp
+                if variable in constraint and variable not in assignment
+            ]
+        )
+
+        if len(most_constraining_variable) == 0:
+            most_constraining_variable = [(variable, counter)]
+            continue
+
+        _, mcVariableDomain = most_constraining_variable[0]
+
+    # for variable in most
+
+    return most_constrained_variable[0][0]
 
 
 def checkConstraint(key, num, assignment, csp):
@@ -64,20 +102,83 @@ def checkConstraint(key, num, assignment, csp):
     return True
 
 
-def recursiveBacktracking(assignment, csp, fc):
-    if len(assignment) == varSize:
+def evaluate(x, operator, y):
+    if operator == ">":
+        return x > y
+    elif operator == "<":
+        return x < y
+    elif operator == "=":
+        return x == y
+    else:  # This should never run
+        print("THIS SHOULDN'T RUN")
+        return False
+
+
+def orderValuesUsingLeastConstrainingValuesHeuristic(variable, domains, csp):
+    """Yo
+    1. Make list of relevant constraints
+    2. Sort values by least constraining
+    """
+
+    relevant_constraints = [constraint for constraint in csp if variable in constraint]
+    ordered_values = []  # Format: (value, # invalid values)
+    # Write logic to order constraints
+    for value in domains[variable]:
+        invalid_values = 0
+
+        # Count # of invalid values for each constraint
+        for constraint in relevant_constraints:
+            var1, operator, var2 = constraint.split(" ")
+
+            # Find other variable
+            other_var = var1 if var1 != variable else var2
+
+            for other_var_value in domains[other_var]:
+                # Determine correct order
+                isValid = (
+                    evaluate(other_var_value, operator, value)
+                    if other_var == var1
+                    else evaluate(value, operator, other_var_value)
+                )
+
+                if not isValid:
+                    invalid_values += 1
+        ordered_values.append((value, invalid_values))
+
+    sorted_values = sorted(ordered_values, key=lambda item: item[1])
+    return [i[0] for i in sorted_values]
+
+
+def recursiveBacktracking(assignment: dict, domains: dict, csp: list):
+    """Given an assignment state, this function  will:
+
+    - Select a variable using the most constrained variable heuristic,
+
+    - Explore all possible values of the variable by:
+       - Select a value using the least constraining variable heuristic,
+       - Check if the assignment is still true
+       - If true, update assignment state and recurse
+
+    """
+    if len(assignment) == numVariables:
         return assignment
 
-    var = selectUnassignedVariable(varDict, assignment, csp)
+    var = selectUnassignedVariable(domains, assignment, csp)
 
-    for num in varDict[var]:
+    orderedValues = orderValuesUsingLeastConstrainingValuesHeuristic(var, domains, csp)
+
+    for num in orderedValues:
+        # Modify this to reorder, checking for least constraining value
         if checkConstraint(var, num, assignment, csp):
             assignment[var] = num
-            result = recursiveBacktracking(assignment, csp, fc)
+            result = recursiveBacktracking(assignment, domains, csp)
+
             if result != "Failure":
                 return result
-        del assignment[var]
+        else:
+            print(assignment, "Failure")
+            del assignment[var]
     return "Failure"
 
 
-print(backtrackingSearch(conDict, forwardChecking))
+print(backtrackingSearch(domains=variablesDictionary, csp=constraintsArray), "Success")
