@@ -1,16 +1,15 @@
 # Command: python main.py ex1.var1.txt ex1.con.txt
 import sys
 
-from utils import initializeConstraints, initializeVariables
+from utils import formatOutput, initializeConstraints, initializeVariables
 
 # Initialize variables and constraints
 variablesDictionary = initializeVariables(sys.argv[1])
 numVariables = len(variablesDictionary)
 constraintsArray = initializeConstraints(sys.argv[2])
 
-forwardChecking = True
-if sys.argv[3] == "none":
-    forwardChecking = False
+# Step is global bc me lazy
+step = [1]
 
 
 def backtrackingSearch(domains, csp):
@@ -53,25 +52,31 @@ def selectUnassignedVariable(variableDomains, assignment, csp):
 
     # If ties exist, apply most constraining variable heuristic
     most_constraining_variable = []
+
     for variable, _ in most_constrained_variable:
         # Find number of unassigned variables current variable constrains
-        counter = sum(
-            [
-                1
-                for constraint in csp
-                if variable in constraint and variable not in assignment
-            ]
-        )
+        counter = 0
+        for constraint in csp:
+            if variable not in constraint:
+                continue
+            var1, operator, var2 = constraint.split(" ")
+            if var1 in assignment or var2 in assignment:
+                continue
+            counter += 1
 
         if len(most_constraining_variable) == 0:
             most_constraining_variable = [(variable, counter)]
             continue
 
-        _, mcVariableDomain = most_constraining_variable[0]
+        _, mcVCount = most_constraining_variable[0]
+        if counter > mcVCount:
+            most_constraining_variable = [(variable, counter)]
+        elif counter == mcVCount:
+            most_constraining_variable.append((variable, counter))
 
     # for variable in most
 
-    return most_constrained_variable[0][0]
+    return most_constraining_variable[0][0]
 
 
 def checkConstraint(key, num, assignment, csp):
@@ -114,13 +119,29 @@ def evaluate(x, operator, y):
         return False
 
 
-def orderValuesUsingLeastConstrainingValuesHeuristic(variable, domains, csp):
+def orderValuesUsingLeastConstrainingValuesHeuristic(
+    variable, assignment, domains, csp
+):
     """Yo
     1. Make list of relevant constraints
     2. Sort values by least constraining
     """
 
-    relevant_constraints = [constraint for constraint in csp if variable in constraint]
+    relevant_constraints = []
+
+    for constraint in csp:
+        if variable not in constraint:
+            continue
+
+        constraint_valid = True
+        for assigned_variable in assignment:
+            if assigned_variable in constraint:
+                constraint_valid = False
+                break
+
+        if constraint_valid:
+            relevant_constraints.append(constraint)
+
     ordered_values = []  # Format: (value, # invalid values)
     # Write logic to order constraints
     for value in domains[variable]:
@@ -146,6 +167,7 @@ def orderValuesUsingLeastConstrainingValuesHeuristic(variable, domains, csp):
         ordered_values.append((value, invalid_values))
 
     sorted_values = sorted(ordered_values, key=lambda item: item[1])
+
     return [i[0] for i in sorted_values]
 
 
@@ -165,7 +187,9 @@ def recursiveBacktracking(assignment: dict, domains: dict, csp: list):
 
     var = selectUnassignedVariable(domains, assignment, csp)
 
-    orderedValues = orderValuesUsingLeastConstrainingValuesHeuristic(var, domains, csp)
+    orderedValues = orderValuesUsingLeastConstrainingValuesHeuristic(
+        var, assignment, domains, csp
+    )
 
     for num in orderedValues:
         # Modify this to reorder, checking for least constraining value
@@ -174,11 +198,15 @@ def recursiveBacktracking(assignment: dict, domains: dict, csp: list):
             result = recursiveBacktracking(assignment, domains, csp)
 
             if result != "Failure":
-                return result
+                print(formatOutput(assignment, step[0], True))
+                exit()  # Fix later; figure out why it keeps recursing even though it should be done
+                # step[0] += 1
+                # return result
         else:
-            print(assignment, "Failure")
+            print(formatOutput(assignment, step[0], False))
+            step[0] += 1
             del assignment[var]
     return "Failure"
 
 
-print(backtrackingSearch(domains=variablesDictionary, csp=constraintsArray), "Success")
+backtrackingSearch(domains=variablesDictionary, csp=constraintsArray)
