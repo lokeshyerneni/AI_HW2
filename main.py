@@ -1,4 +1,5 @@
 # Command: python main.py ex1.var1.txt ex1.con.txt
+import copy
 import sys
 
 from utils import formatOutput, initializeConstraints, initializeVariables
@@ -14,6 +15,10 @@ step = [1]
 
 def backtrackingSearch(domains, csp):
     return recursiveBacktracking({}, domains, csp)
+
+
+def forwardCheckingSearch(domains, csp):
+    return recursiveForwardChecking({}, domains, csp)
 
 
 def selectUnassignedVariable(variableDomains, assignment, csp):
@@ -122,7 +127,7 @@ def evaluate(x, operator, y):
 def orderValuesUsingLeastConstrainingValuesHeuristic(
     variable, assignment, domains, csp
 ):
-    """Yo
+    """
     1. Make list of relevant constraints
     2. Sort values by least constraining
     """
@@ -209,4 +214,108 @@ def recursiveBacktracking(assignment: dict, domains: dict, csp: list):
     return "Failure"
 
 
-backtrackingSearch(domains=variablesDictionary, csp=constraintsArray)
+def updateDomains(assignment: dict, domains: dict, csp: list):
+    """
+    1. Make list of relevant constraints
+    2. Sort values by least constraining
+    """
+
+    relevant_constraints = []
+
+    for variable in assignment:
+        for constraint in csp:
+            if variable not in constraint:
+                continue
+
+            # We want to skip if both variables in constraint are already in assignment
+            constraint_valid = True
+            for assigned_variable in assignment:
+                if assigned_variable in constraint and assigned_variable != variable:
+                    constraint_valid = False
+                    break
+
+            if not constraint_valid:
+                continue
+
+            # Now, update the domain
+            var1, operator, var2 = constraint.split(" ")
+            value = assignment[variable]  # Get assigned value for variable
+
+            # Find other variable
+            other_var = var1 if var1 != variable else var2
+
+            # Make copy of domain so for loop works
+            domain_copy = domains[other_var].copy()
+
+            for other_var_value in domain_copy:
+                # Determine correct order
+                isValid = (
+                    evaluate(other_var_value, operator, value)
+                    if other_var == var1
+                    else evaluate(value, operator, other_var_value)
+                )
+
+                if not isValid:
+                    # Remove from domain
+                    domains[other_var].remove(other_var_value)
+
+    return domains
+
+
+def recursiveForwardChecking(assignment: dict, domains: dict, csp: list):
+    """Given an assignment state, this function  will:
+
+    - Select a variable using the most constrained variable heuristic,
+
+    - Explore all possible values of the variable by:
+       - Select a value using the least constraining variable heuristic,
+       - Check if the assignment is still true
+       - If true, update assignment state, perform forward checking, and recurse
+
+    """
+    if len(assignment) == numVariables:
+        return assignment
+
+    var = selectUnassignedVariable(domains, assignment, csp)
+
+    orderedValues = orderValuesUsingLeastConstrainingValuesHeuristic(
+        var, assignment, domains, csp
+    )
+
+    for num in orderedValues:
+        # Make a copy of domain here
+        newDomains = copy.deepcopy(domains)
+
+        if checkConstraint(var, num, assignment, csp):
+            assignment[var] = num
+
+            # Update domain here
+            newDomains[var] = [num]
+
+            # Check if domains work
+            newDomains = updateDomains(assignment, newDomains, csp)  # type: ignore
+
+            flagIG = True
+            for v in newDomains:
+                if len(newDomains[v]) == 0:
+                    flagIG = False
+
+                    break
+
+            if flagIG:
+                result = recursiveForwardChecking(assignment, newDomains, csp)
+
+                if result != "Failure":
+                    print(formatOutput(assignment, step[0], True))
+                    exit()  # Fix later; figure out why it keeps recursing even though it should be done
+                    # step[0] += 1
+                    # return result
+
+        print(formatOutput(assignment, step[0], False))
+        step[0] += 1
+        del assignment[var]
+    return "Failure"
+
+
+# backtrackingSearch(domains=variablesDictionary, csp=constraintsArray)
+forwardCheckingSearch(domains=variablesDictionary, csp=constraintsArray)
