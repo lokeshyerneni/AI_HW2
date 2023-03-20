@@ -317,5 +317,10 @@ def recursiveForwardChecking(assignment: dict, domains: dict, csp: list):
     return "Failure"
 
 
-# backtrackingSearch(domains=variablesDictionary, csp=constraintsArray)
-forwardCheckingSearch(domains=variablesDictionary, csp=constraintsArray)
+# Decide between backtracking & forwardchecking
+if sys.argv[3] == "none":
+    backtrackingSearch(domains=variablesDictionary, csp=constraintsArray)
+elif sys.argv[3] == "fc":
+    forwardCheckingSearch(domains=variablesDictionary, csp=constraintsArray)
+else:
+    print("Invalid arguments")
